@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseAdd, balances, settle, isRealSender, isSourcePayload, truncateSummary, truncateForUrl, personalSummary, shouldShowGroupTip, GROUP_ANON_ID, money, weeklyTotals, topPayers, canNudge, parseCurrency, nextWeeklySentMark, WEEK_SECONDS } from "../src/parse.ts";
+import { parseAdd, balances, buildGuestReply, settle, isRealSender, isSourcePayload, truncateSummary, truncateForUrl, personalSummary, shouldShowGroupTip, GROUP_ANON_ID, money, weeklyTotals, topPayers, canNudge, parseCurrency, nextWeeklySentMark, WEEK_SECONDS } from "../src/parse.ts";
 test("parseAdd", () => {
   assert.deepEqual(parseAdd("20 dinner @Anna @ben"), { cents: 2000, desc: "dinner", mentions: ["anna", "ben"] });
   assert.deepEqual(parseAdd("12,50 taxi"), { cents: 1250, desc: "taxi", mentions: [] });
@@ -139,4 +139,20 @@ test("nextWeeklySentMark uses the run's own window, not the wall clock, so send 
   const lateNextTrigger = since + WEEK_SECONDS + 1; // next cron fired 1s late
   assert.equal(slowSendNow < lateNextTrigger, true); // old bug: this coin-flip could still skip
   assert.equal(nextWeeklySentMark(since) < lateNextTrigger, true); // fixed: always < next since
+});
+test("buildGuestReply: a parseable expense with mentions returns a value card, no parse_mode", () => {
+  const pitch = { title: "pitch", description: "d", text: "p" };
+  const r = buildGuestReply("120 pizza @alice @bob @carol", "me", pitch);
+  assert.notEqual(r, pitch);
+  assert.match(r.title, /120\.00 pizza split 4 ways/);
+  assert.match(r.text, /@me paid 120\.00 for pizza/);
+  assert.match(r.text, /split 4 ways: @alice, @bob, @carol, @me/);
+  assert.equal("buttons" in r, false, "buttons are appended by wireGuest, not the pure builder");
+  assert.ok(!("parse_mode" in r));
+});
+test("buildGuestReply: garbage or a mention-less amount falls back to the pitch", () => {
+  const pitch = { title: "pitch", description: "d", text: "p" };
+  assert.equal(buildGuestReply("not a number", "me", pitch), pitch);
+  assert.equal(buildGuestReply("", "me", pitch), pitch);
+  assert.equal(buildGuestReply("20 solo dinner", "me", pitch), pitch, "no @mentions -> nobody to split with");
 });

@@ -1,8 +1,9 @@
 import { Bot, Context, InlineKeyboard, InputFile } from "grammy";
 import { Env as KitEnv, PRO_STARS, ProSpec, displayName, isPrivate, makeFetch, now, preparedShare, sendInvoice, wirePro } from "./kit.ts";
+import { GuestReply, queryText, wireGuest, wireInline } from "./guest.ts";
 import { Store } from "./db.ts";
 import { APP_HTML, buildShareText, validateInitData } from "./webapp.ts";
-import { balances, canNudge, isRealSender, isSourcePayload, money, nextWeeklySentMark, parseAdd, parseCurrency, personalSummary, settle, showHandle, shouldShowGroupTip, topPayers, truncateForUrl, weeklyTotals } from "./parse.ts";
+import { balances, buildGuestReply, canNudge, isRealSender, isSourcePayload, money, nextWeeklySentMark, parseAdd, parseCurrency, personalSummary, settle, showHandle, shouldShowGroupTip, topPayers, truncateForUrl, weeklyTotals } from "./parse.ts";
 import { resolveLang, t } from "./i18n.ts";
 export { Store };
 
@@ -175,6 +176,22 @@ async function weeklySummary(env: Env): Promise<number> {
   return sent;
 }
 
+/** Static copy for a guest chat, with the Markdown the i18n table carries stripped: guest
+ * results are posted as plain text (the query is user-supplied and may contain _ or *). */
+const plain = (s: string): string => s.replaceAll("*", "").replaceAll("`", "");
+
+/** Guest Mode: someone @-mentioned us in a chat we were never added to. The math itself
+ * (parses -> value card, garbage -> pitch) lives in the pure, unit-tested
+ * `buildGuestReply` in parse.ts; this just gathers the caller's identity and language. */
+async function onGuest(ctx: Context, env: Env): Promise<GuestReply> {
+  const from = ctx.from;
+  const lang = resolveLang(from?.language_code);
+  const q = queryText(ctx, BOT);
+  const me = from ? handleOf(from) : "you";
+  const pitch: GuestReply = { title: "🧾 SplitTabs — split group expenses", description: "Try: @" + BOT + " 120 pizza @a @b @c", text: plain(startText(lang)) };
+  return buildGuestReply(q, me, pitch);
+}
+
 const proKb = (chatId: number, lang: string): InlineKeyboard => new InlineKeyboard().url(t(lang, "btn_unlockProStars", { stars: PRO_STARS }), `https://t.me/${BOT}?start=pro_${String(chatId).replace("-", "m")}`);
 // The balance/settle text names every member — it must never leave the group as-is. "My
 // summary" is a callback (inline buttons are shared by everyone who sees the message) that
@@ -257,6 +274,29 @@ function buildBot(env: Env): Bot {
     if (pm) await store(env).setGroupPro(Number(pm[1]), charge); else await store(env).setPro(ctx.from!.id, charge);
     const lang = resolveLang(ctx.from?.language_code);
     if (lang !== "en") await ctx.reply(t(lang, "thankYou"));
+  });
+  wireGuest(bot, {
+    botUsername: BOT,
+    reply: (ctx) => onGuest(ctx, env),
+    // `guest` is NOT written to `sources` here (REVIEW-GUEST F3): a summoner is not an
+    // installer. src_guest is earned later, through the ?start=guest deep link in the
+    // buttons below. recordGuest self-limits; `flood` downgrades us to the cheap pitch.
+    record: async (uid, chatType, chatId) => {
+      const r = await store(env).recordGuest(uid, chatType, chatId);
+      if (r.recorded) await store(env).track(uid, "guest");
+      return !r.flood;
+    },
+  });
+  // Classic inline mode: the SAME reply builder, answered as an inline result. A user types
+  // "@Bot query" in any chat on any client and posts the card with `via @Bot` attribution —
+  // no admin, no membership, no Guest Chat Mode toggle. The destination chat is unknown, so
+  // the card carries private-style buttons only. Counted under `inline_queries`; `sources` is
+  // never written here (an inline user is not an installer, same rule as the guest path).
+  wireInline(bot, {
+    botUsername: BOT,
+    reply: (ctx) => onGuest(ctx, env),
+    record: async (uid) => !(await store(env).recordInline(uid)).flood,
+    chosen: (uid) => store(env).recordInlineChosen(uid),
   });
   bot.on("message:new_chat_members", (ctx) => {
     if (!ctx.message.new_chat_members.some((mem) => mem.id === ctx.me.id)) return;

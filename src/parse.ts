@@ -1,3 +1,5 @@
+import type { GuestReply } from "./guest.ts";
+
 export interface AddCmd { cents: number; desc: string; mentions: string[]; }
 
 /** "20 dinner @a @b" | "12.50 taxi" | "€20 lunch" */
@@ -153,6 +155,24 @@ export const WEEK_SECONDS = 7 * 24 * 60 * 60;
  * tick's `since` is guaranteed to be `< since + WEEK_SECONDS` and so counts the group as due
  * again. */
 export function nextWeeklySentMark(since: number): number { return since + WEEK_SECONDS; }
+
+/** Pure Guest Mode reply builder. A split needs at least one named person to divide
+ * against, so a query that parses but names nobody still falls back to `pitch` — there is
+ * nobody to compute shares for. Never touches a store: the math is a pure preview of what
+ * /add would record if it ran inside the group. */
+export function buildGuestReply(q: string, me: string, pitch: GuestReply): GuestReply {
+  const p = q ? parseAdd(q) : null;
+  if (!p || p.mentions.length === 0) return pitch;
+  const parts = Array.from(new Set([...p.mentions, me]));
+  const b = balances([{ payer: me, cents: p.cents, participants: parts }]);
+  const transfers = settle(b);
+  const settleLines = transfers.length ? transfers.map((x) => `${showHandle(x.from)} → ${showHandle(x.to)}: ${money(x.cents)}`) : ["All square."];
+  return {
+    title: `🧾 ${money(p.cents)} ${p.desc} split ${parts.length} ways`,
+    description: settleLines.slice(0, 3).join(" · "),
+    text: `🧾 ${showHandle(me)} paid ${money(p.cents)} for ${p.desc}\nsplit ${parts.length} ways: ${parts.map(showHandle).join(", ")}\n\n${settleLines.join("\n")}`,
+  };
+}
 
 export function parseCurrency(text: string): string | null {
   const v = text.trim();
