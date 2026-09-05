@@ -95,7 +95,7 @@ export class Store extends BaseStore {
     const e = this.one<{ n: number; v: number | null }>("SELECT COUNT(*) AS n, SUM(cents) AS v FROM expenses WHERE deleted = 0 AND chat_id != -1001234567890");
     const u = this.userStats();
     const qg = this.one<{ n: number }>("SELECT COUNT(*) AS n FROM groups WHERE pro = 1 AND chat_id = -1001234567890");
-    const sr = this.all<{ src: string; n: number }>("SELECT src, COUNT(*) AS n FROM sources WHERE NOT (user_id BETWEEN 900000000 AND 900999999) GROUP BY src");
+    const sr = this.all<{ src: string; n: number }>(`SELECT src, COUNT(*) AS n FROM sources WHERE ${this.notTestUser("user_id")} GROUP BY src`);
     const s: Record<string, number> = {};
     for (const r of sr) s["src_" + r.src] = r.n;
     return { ...u, ...s, qa_pro: u.qa_pro + (qg?.n ?? 0), pro: (g?.p ?? 0) + u.pro, events: e?.n ?? 0, groups: g?.n ?? 0, volume_cents: e?.v ?? 0 };

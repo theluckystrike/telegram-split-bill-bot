@@ -20,7 +20,27 @@ export type Key =
   | "nudgeReplyCount"
   | "btn_unlockProStars"
   | "btn_addToGroup"
-  | "btn_shareBot";
+  | "btn_shareBot"
+  | "app_loading"
+  | "app_moreApps"
+  | "app_shareChat"
+  | "app_shareStory"
+  | "app_shareFail"
+  | "app_errNoInit"
+  | "app_errExpired"
+  | "app_errBadSig"
+  | "app_unlockPro"
+  | "app_proOneTime"
+  | "app_proMonthly"
+  | "app_payDone"
+  | "app_payCancelled"
+  | "app_payFailed"
+  | "app_title"
+  | "app_balances"
+  | "app_settle"
+  | "app_group"
+  | "app_storyText"
+  | "app_empty";
 
 /** ctx.from.language_code -> first two letters -> known table language, else "en". */
 export function resolveLang(code?: string): Lang {
@@ -28,11 +48,14 @@ export function resolveLang(code?: string): Lang {
   return (LANGS as readonly string[]).includes(c) ? (c as Lang) : "en";
 }
 
-/** Look up `key` for `lang` (falling back to English), substituting `{name}` tokens from `vars`. */
-export function t(lang: string, key: Key, vars?: Record<string, string | number>): string {
+/** Look up `key` for `lang` (falling back to English), substituting `{name}` tokens from `vars`.
+ * `key` is `string` (not `Key`) so a dynamically-iterated key list — e.g. test/appi18n.test.ts's
+ * `APP_KEYS` — type-checks under plain node without a `Key` import. */
+export function t(lang: string, key: string, vars?: Record<string, string | number>): string {
   const l: Lang = (LANGS as readonly string[]).includes(lang) ? (lang as Lang) : "en";
-  let s = TABLE[key][l] ?? TABLE[key].en;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  const k = key as Key;
+  let s = TABLE[k][l] ?? TABLE[k].en;
+  if (vars) for (const [kk, v] of Object.entries(vars)) s = s.replaceAll(`{${kk}}`, String(v));
   return s;
 }
 
@@ -245,4 +268,173 @@ const TABLE: Record<Key, Record<Lang, string>> = {
     ar: "📣 مشاركة البوت",
     hi: "📣 बॉट शेयर करें",
   },
+  // --- Mini App (MINIAPP-SPEC.md §1/§5) --- the 14 shared app_* keys, copied verbatim from
+  // habit/src/i18n.ts and nudge/src/i18n.ts rather than retranslated, plus 5 split-specific
+  // keys (app_title, app_balances, app_settle, app_group, app_storyText).
+  app_loading: {
+    en: "Loading…", ru: "Загрузка…", es: "Cargando…", pt: "Carregando…", id: "Memuat…",
+    de: "Wird geladen…", tr: "Yükleniyor…", uk: "Завантаження…", fa: "در حال بارگذاری…",
+    ar: "جارٍ التحميل…", hi: "लोड हो रहा है…",
+  },
+  app_moreApps: {
+    en: "More apps", ru: "Другие приложения", es: "Más apps", pt: "Mais apps", id: "Aplikasi lain",
+    de: "Mehr Apps", tr: "Diğer uygulamalar", uk: "Інші застосунки", fa: "برنامه‌های بیشتر",
+    ar: "تطبيقات أخرى", hi: "और ऐप्स",
+  },
+  app_shareChat: {
+    en: "💬 Share to a chat", ru: "💬 Отправить в чат", es: "💬 Compartir en chat",
+    pt: "💬 Enviar no chat", id: "💬 Bagikan ke chat", de: "💬 In Chat teilen",
+    tr: "💬 Sohbette paylaş", uk: "💬 Надіслати в чат", fa: "💬 ارسال به گفتگو",
+    ar: "💬 مشاركة في محادثة", hi: "💬 चैट में भेजें",
+  },
+  app_shareStory: {
+    en: "📣 Share to story", ru: "📣 В историю", es: "📣 A tu historia", pt: "📣 Nos stories",
+    id: "📣 Bagikan ke story", de: "📣 Als Story teilen", tr: "📣 Hikâyede paylaş",
+    uk: "📣 В історію", fa: "📣 اشتراک در استوری", ar: "📣 مشاركة في قصة", hi: "📣 स्टोरी में साझा करें",
+  },
+  app_shareFail: {
+    en: "Sharing is unavailable right now.", ru: "Поделиться сейчас не получилось.",
+    es: "Ahora mismo no se puede compartir.", pt: "Não foi possível compartilhar agora.",
+    id: "Berbagi sedang tidak tersedia.", de: "Teilen ist gerade nicht möglich.",
+    tr: "Şu anda paylaşılamıyor.", uk: "Поділитися зараз не вдалося.",
+    fa: "در حال حاضر اشتراک‌گذاری ممکن نیست.", ar: "المشاركة غير متاحة الآن.",
+    hi: "अभी साझा नहीं किया जा सकता।",
+  },
+  app_errNoInit: {
+    en: "Open this app from the bot — tap the menu button.",
+    ru: "Откройте это приложение из бота — кнопка меню.",
+    es: "Abre esta app desde el bot — toca el botón de menú.",
+    pt: "Abra este app pelo bot — toque no botão de menu.",
+    id: "Buka aplikasi ini dari bot — ketuk tombol menu.",
+    de: "Öffne diese App über den Bot — tippe auf den Menü-Button.",
+    tr: "Bu uygulamayı bottan aç — menü düğmesine dokun.",
+    uk: "Відкрийте застосунок із бота — кнопка меню.",
+    fa: "این برنامه را از داخل ربات باز کنید — دکمه منو.",
+    ar: "افتح هذا التطبيق من البوت — زر القائمة.",
+    hi: "यह ऐप बॉट से खोलें — मेनू बटन दबाएँ।",
+  },
+  app_errExpired: {
+    en: "This session expired. Close and reopen the app.",
+    ru: "Сессия истекла. Закройте и откройте приложение снова.",
+    es: "La sesión caducó. Cierra y vuelve a abrir la app.",
+    pt: "A sessão expirou. Feche e abra o app de novo.",
+    id: "Sesi berakhir. Tutup lalu buka lagi aplikasinya.",
+    de: "Sitzung abgelaufen. App schließen und neu öffnen.",
+    tr: "Oturum doldu. Uygulamayı kapatıp yeniden aç.",
+    uk: "Сесія завершилася. Закрийте й відкрийте застосунок.",
+    fa: "نشست منقضی شد. برنامه را ببندید و دوباره باز کنید.",
+    ar: "انتهت الجلسة. أغلق التطبيق ثم افتحه من جديد.",
+    hi: "सेशन खत्म हो गया। ऐप बंद करके फिर खोलें।",
+  },
+  app_errBadSig: {
+    en: "This link is not valid. Reopen the app from the bot.",
+    ru: "Ссылка недействительна. Откройте приложение из бота.",
+    es: "Este enlace no es válido. Abre la app desde el bot.",
+    pt: "Este link não é válido. Abra o app pelo bot.",
+    id: "Tautan ini tidak valid. Buka aplikasi dari bot.",
+    de: "Dieser Link ist ungültig. Öffne die App über den Bot.",
+    tr: "Bu bağlantı geçersiz. Uygulamayı bottan aç.",
+    uk: "Посилання недійсне. Відкрийте застосунок із бота.",
+    fa: "این پیوند معتبر نیست. برنامه را از ربات باز کنید.",
+    ar: "هذا الرابط غير صالح. افتح التطبيق من البوت.",
+    hi: "यह लिंक मान्य नहीं है। ऐप बॉट से खोलें।",
+  },
+  app_unlockPro: {
+    en: "🔓 Unlock Pro", ru: "🔓 Открыть Pro", es: "🔓 Desbloquear Pro", pt: "🔓 Desbloquear Pro",
+    id: "🔓 Buka Pro", de: "🔓 Pro freischalten", tr: "🔓 Pro'yu aç", uk: "🔓 Відкрити Pro",
+    fa: "🔓 فعال‌سازی Pro", ar: "🔓 تفعيل Pro", hi: "🔓 Pro अनलॉक करें",
+  },
+  app_proOneTime: {
+    en: "One-time {n} ⭐", ru: "Разово {n} ⭐", es: "Pago único {n} ⭐", pt: "Único {n} ⭐",
+    id: "Sekali bayar {n} ⭐", de: "Einmalig {n} ⭐", tr: "Tek seferlik {n} ⭐",
+    uk: "Разово {n} ⭐", fa: "یک‌باره {n} ⭐", ar: "مرة واحدة {n} ⭐", hi: "एकमुश्त {n} ⭐",
+  },
+  app_proMonthly: {
+    en: "Monthly {n} ⭐/mo", ru: "Ежемесячно {n} ⭐", es: "Mensual {n} ⭐/mes", pt: "Mensal {n} ⭐/mês",
+    id: "Bulanan {n} ⭐/bln", de: "Monatlich {n} ⭐", tr: "Aylık {n} ⭐/ay", uk: "Щомісяця {n} ⭐",
+    fa: "ماهانه {n} ⭐", ar: "شهريًا {n} ⭐", hi: "मासिक {n} ⭐",
+  },
+  app_payDone: {
+    en: "✅ Pro unlocked. Thank you.", ru: "✅ Pro активирован. Спасибо.",
+    es: "✅ Pro activado. Gracias.", pt: "✅ Pro ativado. Obrigado.", id: "✅ Pro aktif. Terima kasih.",
+    de: "✅ Pro aktiviert. Danke.", tr: "✅ Pro açıldı. Teşekkürler.", uk: "✅ Pro активовано. Дякуємо.",
+    fa: "✅ Pro فعال شد. سپاسگزاریم.", ar: "✅ تم تفعيل Pro. شكرًا لك.", hi: "✅ Pro चालू हो गया। धन्यवाद।",
+  },
+  app_payCancelled: {
+    en: "Payment cancelled.", ru: "Оплата отменена.", es: "Pago cancelado.", pt: "Pagamento cancelado.",
+    id: "Pembayaran dibatalkan.", de: "Zahlung abgebrochen.", tr: "Ödeme iptal edildi.",
+    uk: "Оплату скасовано.", fa: "پرداخت لغو شد.", ar: "أُلغيت عملية الدفع.", hi: "भुगतान रद्द हुआ।",
+  },
+  app_payFailed: {
+    en: "Payment failed. Please try again.", ru: "Оплата не прошла. Попробуйте ещё раз.",
+    es: "El pago falló. Inténtalo de nuevo.", pt: "O pagamento falhou. Tente de novo.",
+    id: "Pembayaran gagal. Coba lagi.", de: "Zahlung fehlgeschlagen. Bitte erneut versuchen.",
+    tr: "Ödeme başarısız. Tekrar dene.", uk: "Оплата не пройшла. Спробуйте ще раз.",
+    fa: "پرداخت ناموفق بود. دوباره تلاش کنید.", ar: "فشل الدفع. حاول مرة أخرى.",
+    hi: "भुगतान विफल। फिर कोशिश करें।",
+  },
+  app_title: {
+    en: "🧾 Your groups", ru: "🧾 Ваши группы", es: "🧾 Tus grupos", pt: "🧾 Seus grupos",
+    id: "🧾 Grup Anda", de: "🧾 Deine Gruppen", tr: "🧾 Gruplarınız", uk: "🧾 Ваші групи",
+    fa: "🧾 گروه‌های شما", ar: "🧾 مجموعاتك", hi: "🧾 आपके ग्रुप",
+  },
+  app_balances: {
+    en: "Balances", ru: "Балансы", es: "Balances", pt: "Saldos", id: "Saldo", de: "Salden",
+    tr: "Bakiyeler", uk: "Баланси", fa: "مانده‌ها", ar: "الأرصدة", hi: "बैलेंस",
+  },
+  app_settle: {
+    en: "Settle up", ru: "Рассчитаться", es: "Saldar cuentas", pt: "Acertar contas",
+    id: "Selesaikan", de: "Ausgleichen", tr: "Hesabı kapat", uk: "Розрахуватися",
+    fa: "تسویه حساب", ar: "التسوية", hi: "हिसाब चुकाएं",
+  },
+  app_group: {
+    en: "Group", ru: "Группа", es: "Grupo", pt: "Grupo", id: "Grup", de: "Gruppe", tr: "Grup",
+    uk: "Група", fa: "گروه", ar: "مجموعة", hi: "ग्रुप",
+  },
+  app_storyText: {
+    en: "Split group expenses without the spreadsheet, right inside Telegram.",
+    ru: "Делите расходы группы без таблиц — прямо в Telegram.",
+    es: "Divide los gastos del grupo sin hojas de cálculo, directamente en Telegram.",
+    pt: "Divida as despesas do grupo sem planilhas, direto no Telegram.",
+    id: "Bagi pengeluaran grup tanpa spreadsheet, langsung di Telegram.",
+    de: "Teile Gruppenausgaben ohne Tabelle, direkt in Telegram.",
+    tr: "Grup harcamalarını tablo kullanmadan, doğrudan Telegram içinde böl.",
+    uk: "Діліть витрати групи без таблиць — прямо в Telegram.",
+    fa: "هزینه‌های گروه را بدون صفحه‌گسترده، مستقیم در تلگرام تقسیم کنید.",
+    ar: "قسّم مصاريف المجموعة بدون جداول بيانات، مباشرة داخل تيليجرام.",
+    hi: "बिना स्प्रेडशीट के, सीधे Telegram में ग्रुप के खर्च बांटें।",
+  },
+  // The app's "no groups yet" state: not in the base 14+5, but genuinely on screen (every
+  // other bot's Mini App carries an app_empty), so it's a 20th key rather than a fabricated
+  // English fallback (MINIAPP-SPEC.md §1 "No English literal may remain in the app body").
+  app_empty: {
+    en: "No groups yet. Add @SplitTabsBot to a group, then send {cmd}",
+    ru: "Пока нет групп. Добавьте @SplitTabsBot в группу, затем отправьте {cmd}",
+    es: "Aún no hay grupos. Agrega @SplitTabsBot a un grupo y envía {cmd}",
+    pt: "Ainda não há grupos. Adicione @SplitTabsBot a um grupo e envie {cmd}",
+    id: "Belum ada grup. Tambahkan @SplitTabsBot ke grup, lalu kirim {cmd}",
+    de: "Noch keine Gruppen. Füge @SplitTabsBot zu einer Gruppe hinzu und sende {cmd}",
+    tr: "Henüz grup yok. @SplitTabsBot'u bir gruba ekle, sonra {cmd} gönder",
+    uk: "Поки що немає груп. Додайте @SplitTabsBot до групи, потім надішліть {cmd}",
+    fa: "هنوز گروهی نیست. @SplitTabsBot را به یک گروه اضافه کنید، سپس {cmd} را بفرستید",
+    ar: "لا توجد مجموعات بعد. أضف @SplitTabsBot إلى مجموعة، ثم أرسل {cmd}",
+    hi: "अभी कोई ग्रुप नहीं है। @SplitTabsBot को किसी ग्रुप में जोड़ें, फिर {cmd} भेजें",
+  },
 };
+
+/** The 11 language codes this bot ships, in table order. */
+export const APP_LANGS: Lang[] = [...LANGS];
+
+/** Every `app_*` key, for every language, as a plain object — the Mini App's embedded
+ * `APP_I18N` dictionary. English fills any gap so a client lookup can never miss.
+ * Both loops are bounded by the static table (11 languages x the app_* key set). */
+export function appDict(): Record<string, Record<string, string>> {
+  const keys = (Object.keys(TABLE) as Key[]).filter((k) => k.startsWith("app_"));
+  const out: Record<string, Record<string, string>> = {};
+  for (const l of LANGS) {
+    const m: Record<string, string> = {};
+    for (const k of keys) m[k] = TABLE[k][l] ?? TABLE[k].en;
+    out[l] = m;
+  }
+  return out;
+}
