@@ -1,6 +1,6 @@
 # SplitTabsBot — split bill bot for Telegram
 
-**Try it:** [@SplitTabsBot](https://t.me/SplitTabsBot) · [tg.zovo.one/bots/split/](https://tg.zovo.one/bots/split/)
+**Try it:** [@SplitTabsBot](https://t.me/SplitTabsBot?start=github) · [tg.zovo.one/bots/split/](https://tg.zovo.one/bots/split/)
 
 ## What it does
 
